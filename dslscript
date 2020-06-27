@@ -1,0 +1,87 @@
+buildPipelineView('buildpipeline') {
+    filterBuildQueue()
+    filterExecutors()
+    title('Project A CI Pipeline')
+    displayedBuilds(5)
+    selectedJob('t61')
+    alwaysAllowManualTrigger(false)
+    showPipelineParameters()
+    refreshFrequency(60)
+}
+
+
+
+job("t61"){
+ 	 scm{
+		github('sachiniraveni/task6','master')
+  	}
+  	triggers{
+		scm('* * * * *')
+  	}
+	steps{
+		shell('sudo cp -rvf *.html /home/copy_code6/')
+	}
+  	steps {
+        	dockerBuildAndPublish {
+            	repositoryName('sachin13579/testingserver')
+            	tag('latest')
+            	registryCredentials('mydocker')
+		forceTag(false)
+		forcePull(false)
+            	createFingerprints(false)
+            	skipDecorate()
+        	}
+    	}
+
+}
+
+
+job("t62"){
+  	triggers{
+		upstream("t61", 'SUCCESS')
+ 	}
+  	steps{
+    		shell('''if (ls /home/copy_code6/ | grep .html)
+		then
+		if sudo kubectl get deploy php
+		then
+		sudo kubectl set image deploy php php=sachin13579/testingserver:latest
+		else
+		sudo kubectl create -f /docker6/php-pv.yml
+		sudo kubectl create -f /docker6/php-pvc.yml
+                sudo kubectl create -f /docker6/php-dep.yml
+		fi
+		fi
+		if sudo kubectl get service php
+		then
+		echo "already "
+		else
+		sudo kubectl create -f /home/docker6/php-service.yml
+		fi''')
+   	}
+}
+
+
+job("t63"){
+  	triggers{
+		upstream("t62",'SUCCESS')
+ 	}
+	steps{
+		shell('''status=$(curl -o /dev/null -s -w "%{http_code}" http://192.168.99.101:30036/index.html)
+		if [[ $status == 200 ]]
+		then
+		exit 0
+		else
+		exit 1
+		fi
+		''')
+	}
+}
+job("t64"){
+  	triggers{
+		upstream("t63",'FAILURE')
+ 	}
+    	publishers {
+        	mailer('iraveni182@gmail.com@gmail.com', true, true)
+    	}
+}
