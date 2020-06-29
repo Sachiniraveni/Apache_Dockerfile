@@ -2,8 +2,11 @@ FROM centos:latest
 RUN yum install sudo -y
 RUN yum install httpd -y
 
-COPY *.html  /var/www/html
+RUN mkdir /root/html
 
-EXPOSE 80
+COPY *.html  /root/html/
+
+COPY ./index.html  /root/html
+
 CMD ["/usr/sbin/httpd","-D","FOREGROUND"]
 
